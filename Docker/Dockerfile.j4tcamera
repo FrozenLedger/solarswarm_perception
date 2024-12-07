@@ -4,13 +4,28 @@ RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-key F6E65AC044F831AC80A0
 RUN add-apt-repository "deb https://librealsense.intel.com/Debian/apt-repo $(lsb_release -cs) main" -u
 RUN apt-get install -y librealsense2-utils
 RUN apt-get install librealsense2-dev
-# RUN apt-get install -y ros-noetic-cv-bridge
+RUN apt-get install -y ros-noetic-cv-bridge; exit 0
+RUN apt-get install --fix-broken; exit 0
 
-#RUN cd /home && git clone https://github.com/IntelRealSense/librealsense.git
-#RUN ./home/librealsense/scripts/patch-release-ubuntu-L4T.sh
+RUN pip3 install pyrealsense2
 
-# RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
-# RUN apt-get update && apt-get install -y ros-noetic-realsense2-camera
+RUN mkdir -p /home/catkin_ws/src && \
+    cd /home/catkin_ws/src && \
+    git clone https://github.com/FrozenLedger/ba_code.git && \
+    cd ba_code && \
+    git checkout jetson-devel
+RUN cd /home/catkin_ws/ && /bin/bash -c "source /opt/ros/noetic/setup.bash;catkin_make"
+
+# alter the /ros_entrypoint.sh to source the project folder and export the correct default machine name for a jetson machine and export the correct ip
+RUN sed -i '$ d' /ros_entrypoint.sh
+RUN echo 'source /home/catkin_ws/devel/setup.bash' >> /ros_entrypoint.sh
+RUN echo "export ROS_HOSTNAME=ubuntu.local" >> /ros_entrypoint.sh
+RUN echo "export ROS_IP=ubuntu.local" >> /ros_entrypoint.sh
+RUN echo 'exec "$@"' >> /ros_entrypoint.sh
+
+RUN echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc
+RUN echo "export ROS_HOSTNAME=ubuntu.local" >> ~/.bashrc
+RUN echo "export ROS_IP=ubuntu.local" >> ~/.bashrc
 
 ENTRYPOINT ["/ros_entrypoint.sh"]
-CMD ["bash"]
+CMD ["python3","/home/catkin_ws/src/ba_code/scripts/ba/perception/rsd435_node.py"]
